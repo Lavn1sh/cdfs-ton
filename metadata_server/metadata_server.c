@@ -9,6 +9,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <time.h>
+#include <string.h>
 #include "metadata.h"
 
 #define PORT 8080
