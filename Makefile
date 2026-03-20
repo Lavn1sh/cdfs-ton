@@ -1,29 +1,25 @@
 CC=gcc
-CFLAGS=-Wall -Wextra -std=c11 -Icommon
+CFLAGS=-Wall -Wextra -D_POSIX_C_SOURCE=200809L -pthread -g -Icommon
 
-OBJ=main.o \
-	client/dfs_client.o \
-	metadata_server/metadata.o \
-	storage_node/storage.o
+all: cdfs_client cdfs_metadata cdfs_storage
 
-TARGET=cdfs
-
-all: $(TARGET)
-
-$(TARGET): $(OBJ)
-	$(CC) $(CFLAGS) -o $(TARGET) $(OBJ)
-
-main.o: main.c
-	$(CC) $(CFLAGS) -c main.c
-
-client/dfs_client.o: client/dfs_client.c
-	$(CC) $(CFLAGS) -c client/dfs_client.c -o client/dfs_client.o
+common/serialization.o: common/serialization.c common/serialization.h
+	$(CC) $(CFLAGS) -c common/serialization.c -o common/serialization.o
 
 metadata_server/metadata.o: metadata_server/metadata.c
 	$(CC) $(CFLAGS) -c metadata_server/metadata.c -o metadata_server/metadata.o
 
+cdfs_metadata: common/serialization.o metadata_server/metadata.o metadata_server/metadata_server.c
+	$(CC) $(CFLAGS) common/serialization.o metadata_server/metadata.o metadata_server/metadata_server.c -o cdfs_metadata
+
 storage_node/storage.o: storage_node/storage.c
 	$(CC) $(CFLAGS) -c storage_node/storage.c -o storage_node/storage.o
 
+cdfs_storage: common/serialization.o storage_node/storage.o storage_node/storage_node.c
+	$(CC) $(CFLAGS) common/serialization.o storage_node/storage.o storage_node/storage_node.c -o cdfs_storage
+
+cdfs_client: common/serialization.o client/dfs_client.c main.c
+	$(CC) $(CFLAGS) common/serialization.o client/dfs_client.c main.c -o cdfs_client
+
 clean:
-	rm -f $(TARGET) *.o client/*.o metadata_server/*.o storage_node/*.o chunk_*.dat
+	rm -f cdfs_client cdfs_metadata cdfs_storage common/*.o client/*.o metadata_server/*.o storage_node/*.o chunk_*.dat
