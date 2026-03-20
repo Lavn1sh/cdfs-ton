@@ -74,6 +74,10 @@ typedef struct {
 
 // OP_GET_ACTIVE_NODES
 typedef struct {
+    uint8_t dummy; // To satisfy sizeof() in client payload
+} req_get_active_nodes_t;
+
+typedef struct {
     int32_t node_count;
     uint8_t node_ips[REPLICATION_FACTOR][16];
     int32_t node_ports[REPLICATION_FACTOR];
