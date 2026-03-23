@@ -9,8 +9,9 @@
 #include <arpa/inet.h>
 #include <pthread.h>
 
-#define METADATA_IP "127.0.0.1"
-#define METADATA_PORT 8080
+#include "../common/config.h"
+
+cdfs_config_t g_config;
 
 int32_t storage_port = 8081;
 
@@ -21,8 +22,8 @@ void* heartbeat_thread(void* arg) {
         if (sock >= 0) {
             struct sockaddr_in serv_addr;
             serv_addr.sin_family = AF_INET;
-            serv_addr.sin_port = htons(METADATA_PORT);
-            inet_pton(AF_INET, METADATA_IP, &serv_addr.sin_addr);
+            serv_addr.sin_port = htons(g_config.meta_port);
+            inet_pton(AF_INET, (const char *)g_config.meta_ip, &serv_addr.sin_addr);
             
             if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) == 0) {
                 req_heartbeat_t hb = { storage_port, 1024 }; // Report 1024 MB
@@ -105,6 +106,7 @@ void handle_client(int32_t client_sock) {
 }
 
 int main(int argc, char *argv[]) {
+    load_config((const uint8_t *)"cdfs.conf", &g_config);
     if (argc > 1) {
         storage_port = atoi(argv[1]);
     }

@@ -7,6 +7,14 @@
 static file_metadata_t files[MAX_FILES];
 static int32_t file_count = 0;
 
+void append_edit_log(file_metadata_t *file) {
+    FILE *fp = fopen("edits.log", "ab");
+    if (fp) {
+        fwrite(file, sizeof(file_metadata_t), 1, fp);
+        fclose(fp);
+    }
+}
+
 int32_t register_file(const uint8_t *filename, const chunk_info_t* chunks, int32_t chunk_count) {
     
     if(file_count >= MAX_FILES){
@@ -35,7 +43,7 @@ int32_t register_file(const uint8_t *filename, const chunk_info_t* chunks, int32
         file->chunks[i] = chunks[i];
     }
     file_count++;
-    save_fsimage();
+    append_edit_log(file);
 
     return 0;
 }
@@ -61,6 +69,19 @@ int32_t get_file_metadata(const uint8_t *filename, file_metadata_t *out){
         }
     }
     return -1;
+}
+
+int32_t list_files_in_dir(const uint8_t *dir, uint8_t (*out_files)[MAX_FILENAME]) {
+    int32_t count = 0;
+    size_t dirlen = strlen((const char *)dir);
+    for (int32_t i = 0; i < file_count; i++) {
+        if (strncmp((const char *)files[i].filename, (const char *)dir, dirlen) == 0) {
+            strncpy((char *)out_files[count], (const char *)files[i].filename, MAX_FILENAME - 1);
+            out_files[count][MAX_FILENAME - 1] = '\0';
+            count++;
+        }
+    }
+    return count;
 }
 
 void save_fsimage(void) {
@@ -89,4 +110,18 @@ void load_fsimage(void) {
     fread(files, sizeof(file_metadata_t), file_count, fp);
     fclose(fp);
     printf("Loaded fsimage.dat containing %d files.\n", file_count);
+    
+    FILE *edits = fopen("edits.log", "rb");
+    if (edits) {
+        file_metadata_t file;
+        int32_t loaded = 0;
+        while (fread(&file, sizeof(file_metadata_t), 1, edits) == 1) {
+            if (file_count < MAX_FILES) {
+                files[file_count++] = file;
+                loaded++;
+            }
+        }
+        fclose(edits);
+        printf("Replayed %d files from edits.log.\n", loaded);
+    }
 }

@@ -10,8 +10,7 @@
 #include <arpa/inet.h>
 #include <time.h>
 
-#define METADATA_IP "127.0.0.1"
-#define METADATA_PORT 8080
+#include "../common/config.h"
 
 static int32_t connect_to_server(const uint8_t *ip, int32_t port) {
     int32_t sock = 0;
@@ -42,7 +41,9 @@ int32_t cdfs_put(const uint8_t *local_path, const uint8_t *cdfs_path) {
     int32_t chunk_count = 0;
     
     // Get active nodes
-    int32_t meta_sock = connect_to_server((const uint8_t *)METADATA_IP, METADATA_PORT);
+    cdfs_config_t config;
+    load_config((const uint8_t *)"cdfs.conf", &config);
+    int32_t meta_sock = connect_to_server((const uint8_t *)config.meta_ip, config.meta_port);
     if (meta_sock < 0) { fclose(fp); return -1; }
     
     req_get_active_nodes_t req_nodes;
@@ -111,7 +112,7 @@ int32_t cdfs_put(const uint8_t *local_path, const uint8_t *cdfs_path) {
     fclose(fp);
 
     // Register with metadata server
-    meta_sock = connect_to_server((const uint8_t *)METADATA_IP, METADATA_PORT);
+    meta_sock = connect_to_server((const uint8_t *)config.meta_ip, config.meta_port);
     if (meta_sock < 0) return -1;
 
     req_register_file_t reg_req;
@@ -136,7 +137,9 @@ int32_t cdfs_put(const uint8_t *local_path, const uint8_t *cdfs_path) {
 
 int32_t cdfs_get(const uint8_t *cdfs_path, const uint8_t *local_path) {
     // Contact metadata server
-    int32_t meta_sock = connect_to_server((const uint8_t *)METADATA_IP, METADATA_PORT);
+    cdfs_config_t config;
+    load_config((const uint8_t *)"cdfs.conf", &config);
+    int32_t meta_sock = connect_to_server((const uint8_t *)config.meta_ip, config.meta_port);
     if (meta_sock < 0) return -1;
 
     req_get_metadata_t meta_req;
@@ -215,5 +218,35 @@ int32_t cdfs_get(const uint8_t *cdfs_path, const uint8_t *local_path) {
 
     if (chunks) free(chunks);
     fclose(fp);
+    return 0;
+}
+
+int32_t cdfs_ls(const uint8_t *cdfs_path) {
+    cdfs_config_t config;
+    load_config((const uint8_t *)"cdfs.conf", &config);
+    int32_t meta_sock = connect_to_server((const uint8_t *)config.meta_ip, config.meta_port);
+    if (meta_sock < 0) return -1;
+    
+    req_list_files_t req;
+    memset(&req, 0, sizeof(req));
+    strncpy((char *)req.directory, (const char *)cdfs_path, MAX_FILENAME - 1);
+    
+    net_header_t hdr = { OP_LIST_FILES, sizeof(req) };
+    send_exact(meta_sock, &hdr, sizeof(hdr));
+    send_exact(meta_sock, &req, sizeof(req));
+    
+    net_header_t resp_hdr;
+    resp_list_files_t resp;
+    if (recv_exact(meta_sock, &resp_hdr, sizeof(resp_hdr)) == 0 &&
+        recv_exact(meta_sock, &resp, sizeof(resp)) == 0) {
+        
+        for (int32_t i = 0; i < resp.file_count; i++) {
+            uint8_t fname[MAX_FILENAME];
+            if (recv_exact(meta_sock, fname, MAX_FILENAME) == 0) {
+                printf("%s\n", fname);
+            }
+        }
+    }
+    close(meta_sock);
     return 0;
 }

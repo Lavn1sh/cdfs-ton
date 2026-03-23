@@ -38,5 +38,6 @@ int32_t get_file_metadata(const uint8_t *filename, file_metadata_t *out);
 // Client API
 int32_t cdfs_put(const uint8_t *local_path, const uint8_t *cdfs_path);
 int32_t cdfs_get(const uint8_t *cdfs_path, const uint8_t *local_path);
+int32_t cdfs_ls(const uint8_t *cdfs_path);
 
 #endif

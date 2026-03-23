@@ -11,8 +11,9 @@
 #include <time.h>
 #include <string.h>
 #include "metadata.h"
+#include "../common/config.h"
 
-#define PORT 8080
+cdfs_config_t g_config;
 
 typedef struct {
     uint8_t ip[16];
@@ -100,6 +101,23 @@ void handle_client(int32_t client_sock) {
                 printf("Registered new storage node %s:%d\n", ip, req.storage_port);
             }
         }
+    } else if (header.op_code == OP_LIST_FILES) {
+        req_list_files_t req;
+        if (recv_exact(client_sock, &req, sizeof(req)) != 0) {
+            close(client_sock);
+            return;
+        }
+        
+        uint8_t matching_files[MAX_FILES][MAX_FILENAME];
+        int32_t match_count = list_files_in_dir(req.directory, matching_files);
+        
+        resp_list_files_t resp = { match_count };
+        net_header_t resp_header = { OP_LIST_FILES, sizeof(resp) + match_count * MAX_FILENAME };
+        send_exact(client_sock, &resp_header, sizeof(resp_header));
+        send_exact(client_sock, &resp, sizeof(resp));
+        if (match_count > 0) {
+            send_exact(client_sock, matching_files, match_count * MAX_FILENAME);
+        }
     } else if (header.op_code == OP_GET_ACTIVE_NODES) {
         resp_get_active_nodes_t resp;
         memset(&resp, 0, sizeof(resp));
@@ -122,6 +140,7 @@ void handle_client(int32_t client_sock) {
 }
 
 int main() {
+    load_config((const uint8_t *)"cdfs.conf", &g_config);
     load_fsimage();
     
     int32_t server_fd;
@@ -140,7 +159,7 @@ int main() {
 
     address.sin_family = AF_INET;
     address.sin_addr.s_addr = INADDR_ANY;
-    address.sin_port = htons(PORT);
+    address.sin_port = htons(g_config.meta_port);
 
     if (bind(server_fd, (struct sockaddr *)&address, sizeof(address)) < 0) {
         perror("bind failed");
@@ -152,7 +171,7 @@ int main() {
         exit(EXIT_FAILURE);
     }
 
-    printf("Metadata server listening on port %d\n", PORT);
+    printf("Metadata server listening on port %d\n", g_config.meta_port);
     while (1) {
         int32_t client_sock = accept(server_fd, NULL, NULL);
         if (client_sock >= 0) {

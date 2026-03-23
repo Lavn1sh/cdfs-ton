@@ -12,6 +12,7 @@ typedef enum {
     OP_LOAD_CHUNK    = 4,
     OP_HEARTBEAT     = 5,
     OP_GET_ACTIVE_NODES = 6,
+    OP_LIST_FILES = 7,
     OP_ERROR         = 99
 } op_code_t;
 
@@ -82,5 +83,15 @@ typedef struct {
     uint8_t node_ips[REPLICATION_FACTOR][16];
     int32_t node_ports[REPLICATION_FACTOR];
 } resp_get_active_nodes_t;
+
+// OP_LIST_FILES
+typedef struct {
+    uint8_t directory[MAX_FILENAME];
+} req_list_files_t;
+
+typedef struct {
+    int32_t file_count;
+    // Followed by `file_count` strings of MAX_FILENAME length
+} resp_list_files_t;
 
 #endif
