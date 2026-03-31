@@ -24,14 +24,17 @@ int32_t recv_exact(int32_t sockfd, void *buf, size_t len) {
     return 0;
 }
 
-#define FNV_OFFSET_BASIS 2166136261U
+#define FNV_OFFSET_BASIS CHKSUM_INIT
 #define FNV_PRIME 16777619U
 
-uint32_t calculate_checksum(const uint8_t *data, size_t length) {
-    uint32_t hash = FNV_OFFSET_BASIS;
+uint32_t update_checksum(uint32_t hash, const uint8_t *data, size_t length) {
     for (size_t i = 0; i < length; i++) {
         hash ^= data[i];
         hash *= FNV_PRIME;
     }
     return hash;
+}
+
+uint32_t calculate_checksum(const uint8_t *data, size_t length) {
+    return update_checksum(FNV_OFFSET_BASIS, data, length);
 }

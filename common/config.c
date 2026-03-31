@@ -8,10 +8,13 @@ int32_t load_config(const uint8_t *filename, cdfs_config_t *out_config) {
     strncpy((char *)out_config->meta_ip, "127.0.0.1", MAX_IP_LEN - 1);
     out_config->meta_ip[MAX_IP_LEN - 1] = '\0';
     out_config->meta_port = 8080;
+    strncpy((char *)out_config->storage_dir, "./storage_data", sizeof(out_config->storage_dir) - 1);
+    out_config->storage_dir[sizeof(out_config->storage_dir) - 1] = '\0';
 
     FILE *fp = fopen((const char *)filename, "r");
     if (!fp) {
-        printf("Could not open config file %s, using defaults: %s:%d\n", filename, out_config->meta_ip, out_config->meta_port);
+        printf("Could not open config file %s, using defaults: %s:%d\n",
+               (const char *)filename, (const char *)out_config->meta_ip, out_config->meta_port);
         return 0; // Succeed with defaults
     }
 
@@ -25,6 +28,9 @@ int32_t load_config(const uint8_t *filename, cdfs_config_t *out_config) {
                 out_config->meta_ip[MAX_IP_LEN - 1] = '\0';
             } else if (strcmp((char *)key, "META_PORT") == 0) {
                 out_config->meta_port = atoi((char *)val);
+            } else if (strcmp((char *)key, "STORAGE_DIR") == 0) {
+                strncpy((char *)out_config->storage_dir, (char *)val, sizeof(out_config->storage_dir) - 1);
+                out_config->storage_dir[sizeof(out_config->storage_dir) - 1] = '\0';
             }
         }
     }
