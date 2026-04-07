@@ -41,5 +41,6 @@ int32_t cdfs_get(const uint8_t *cdfs_path, const uint8_t *local_path);
 int32_t cdfs_ls(const uint8_t *cdfs_path);
 int32_t cdfs_rm(const uint8_t *cdfs_path);
 int32_t cdfs_status(void);
+void cdfs_set_config(const char *path);
 
 #endif

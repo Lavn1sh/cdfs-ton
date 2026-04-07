@@ -1,6 +1,8 @@
 #include "../common/dfs.h"
 #include "../common/protocol.h"
 #include "../common/serialization.h"
+#include "../common/config.h"
+#include "../common/log.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -13,20 +15,31 @@
 #include "../common/config.h"
 
 static int32_t connect_to_server(const uint8_t *ip, int32_t port) {
-    int32_t sock = 0;
+    int32_t sock = socket(AF_INET, SOCK_STREAM, 0);
+    if (sock < 0) {
+        LOG_ERR("CLI", "socket failed\n");
+        return -1;
+    }
     struct sockaddr_in serv_addr;
-    if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) return -1;
     serv_addr.sin_family = AF_INET;
-    serv_addr.sin_port = htons(port);
+    serv_addr.sin_port   = htons(port);
     if (inet_pton(AF_INET, (const char *)ip, &serv_addr.sin_addr) <= 0) {
+        LOG_ERR("CLI", "Invalid address %s\n", ip);
         close(sock);
         return -1;
     }
     if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+        LOG_ERR("CLI", "Connection to %s:%d failed\n", ip, port);
         close(sock);
         return -1;
     }
     return sock;
+}
+
+static const char *s_config_path = "cdfs.conf";
+
+void cdfs_set_config(const char *path) {
+    if (path) s_config_path = path;
 }
 
 int32_t cdfs_put(const uint8_t *local_path, const uint8_t *cdfs_path) {
@@ -37,7 +50,7 @@ int32_t cdfs_put(const uint8_t *local_path, const uint8_t *cdfs_path) {
     int32_t chunk_count = 0;
     
     cdfs_config_t config;
-    load_config((const uint8_t *)"cdfs.conf", &config);
+    load_config((const uint8_t *)s_config_path, &config);
 
     // Calculate how many chunks we need
     fseek(fp, 0, SEEK_END);
@@ -177,7 +190,7 @@ int32_t cdfs_put(const uint8_t *local_path, const uint8_t *cdfs_path) {
 int32_t cdfs_get(const uint8_t *cdfs_path, const uint8_t *local_path) {
     // Contact metadata server
     cdfs_config_t config;
-    load_config((const uint8_t *)"cdfs.conf", &config);
+    load_config((const uint8_t *)s_config_path, &config);
     int32_t meta_sock = connect_to_server((const uint8_t *)config.meta_ip, config.meta_port);
     if (meta_sock < 0) return -1;
 
@@ -277,7 +290,7 @@ int32_t cdfs_get(const uint8_t *cdfs_path, const uint8_t *local_path) {
 
 int32_t cdfs_ls(const uint8_t *cdfs_path) {
     cdfs_config_t config;
-    load_config((const uint8_t *)"cdfs.conf", &config);
+    load_config((const uint8_t *)s_config_path, &config);
     int32_t meta_sock = connect_to_server((const uint8_t *)config.meta_ip, config.meta_port);
     if (meta_sock < 0) return -1;
     
@@ -307,7 +320,7 @@ int32_t cdfs_ls(const uint8_t *cdfs_path) {
 
 int32_t cdfs_status() {
     cdfs_config_t config;
-    load_config((const uint8_t *)"cdfs.conf", &config);
+    load_config((const uint8_t *)s_config_path, &config);
     int32_t meta_sock = connect_to_server((const uint8_t *)config.meta_ip, config.meta_port);
     if (meta_sock < 0) return -1;
 
@@ -329,7 +342,7 @@ int32_t cdfs_status() {
 
 int32_t cdfs_rm(const uint8_t *cdfs_path) {
     cdfs_config_t config;
-    load_config((const uint8_t *)"cdfs.conf", &config);
+    load_config((const uint8_t *)s_config_path, &config);
     int32_t meta_sock = connect_to_server((const uint8_t *)config.meta_ip, config.meta_port);
     if (meta_sock < 0) return -1;
 

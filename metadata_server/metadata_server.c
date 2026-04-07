@@ -156,8 +156,10 @@ void handle_client(int32_t client_sock) {
             }
         }
         pthread_mutex_unlock(&nodes_mutex);
-        LOG_INFO("MD", "Received block report from %s:%d (%d chunks)\n",
-               ip, req.storage_port, req.chunk_count);
+        /* 
+         * LOG_INFO("MD", "Received block report from %s:%d (%d chunks)\n",
+         *       ip, req.storage_port, req.chunk_count);
+         */
 
     // OP_LIST_FILES 
 
@@ -184,13 +186,18 @@ void handle_client(int32_t client_sock) {
         time_t now = time(NULL);
 
         pthread_mutex_lock(&nodes_mutex);
-        for (int32_t i = 0; i < active_node_count && resp.node_count < REPLICATION_FACTOR; i++) {
+        static int32_t rr_offset = 0;
+        int32_t start_idx = rr_offset;
+
+        for (int32_t count = 0; count < active_node_count && resp.node_count < REPLICATION_FACTOR; count++) {
+            int32_t i = (start_idx + count) % active_node_count;
             if (!active_nodes[i].dead && (now - active_nodes[i].last_seen) <= 15) {
                 strncpy((char *)resp.node_ips[resp.node_count], (char *)active_nodes[i].ip, 15);
                 resp.node_ports[resp.node_count] = active_nodes[i].port;
                 resp.node_count++;
             }
         }
+        if (active_node_count > 0) rr_offset = (rr_offset + 1) % active_node_count;
         pthread_mutex_unlock(&nodes_mutex);
 
         net_header_t resp_header = { OP_GET_ACTIVE_NODES, sizeof(resp) };
@@ -409,8 +416,14 @@ void *client_thread(void *arg) {
     return NULL;
 }
 
-int main(void) {
-    load_config((const uint8_t *)"cdfs.conf", &g_config);
+int main(int argc, char *argv[]) {
+    const char *config_file = "cdfs.conf";
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "--config") == 0 && i + 1 < argc) {
+            config_file = argv[++i];
+        }
+    }
+    load_config((const uint8_t *)config_file, &g_config);
     load_fsimage();
 
     int32_t server_fd;

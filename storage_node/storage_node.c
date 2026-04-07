@@ -199,10 +199,15 @@ void *client_thread(void *arg) {
 // main
 
 int main(int argc, char *argv[]) {
-    load_config((const uint8_t *)"cdfs.conf", &g_config);
-    if (argc > 1) {
-        storage_port = atoi(argv[1]);
+    const char *config_file = "cdfs.conf";
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "--config") == 0 && i + 1 < argc) {
+            config_file = argv[++i];
+        } else if (argv[i][0] != '-') {
+            storage_port = atoi(argv[i]);
+        }
     }
+    load_config((const uint8_t *)config_file, &g_config);
 
     storage_init((const uint8_t *)g_config.storage_dir);
 
